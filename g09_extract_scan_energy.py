@@ -4,7 +4,6 @@
 import numpy as np
 import pandas as pd
 import math, re, os, time
-#from itertools import chain,
 
 
 pathin = input("\nPlease Enter the Directory Contained Your File:\n")
