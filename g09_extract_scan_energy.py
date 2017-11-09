@@ -3,7 +3,7 @@
 
 import numpy as np
 import pandas as pd
-import math, re, os, time
+import re, os, time
 
 
 pathin = input("\nPlease Enter the Directory Contained Your File:\n")
