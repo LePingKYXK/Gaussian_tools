@@ -18,9 +18,10 @@ def extract_elements(fo):
     for line in fo:
         temp = line.strip().split()
         if not line.startswith("    ") and len(temp) > 0:
-            elements.append(temp[0])
+            elements.append(temp[0][0])
         else:
             break
+    print(elements)
     return elements, len(elements)
 
 
@@ -41,14 +42,14 @@ def parse_info(fo, pattern_orient, len_elements, pattern_energy, pattern_statny)
                 xyz = line.strip().split()[3:6]
                 xyzlist.append(xyz)
             coords[:] = xyzlist
-            #print("\ncoordinates:\n{:}\n".format(coords))
+            print("\ncoordinates:\n{:}\n".format(coords))
             
         if line.startswith(' SCF Done:'):
             energy = []
             match_energy = re.search(pattern_energy, line)
             if match_energy:
                 energy.append(match_energy.group(1))
-                
+            print("\nenergy:\n{:}\n".format(energy))
         elif re.search(pattern_statny, line):
             break
         
@@ -124,7 +125,7 @@ def main(path, filename, method, angID1, angID2):
     psi_list = []
 
     str_checkpoint = r"\s+Charge\s+=\s+\d+\s+Multiplicity\s+=\s+\d+"
-    str_energy_val = r"\s+E\(\w+\d+\)\s+=\s+([-+]?\d*\.\d+)"
+    str_energy_val = r"\s+E\(.*\)\s+=\s+([-+]?\d*\.\d+)"
     str_stationary = r"\s+Stationary point found.\s+"
     str_std_orient = r"\s+Standard orientation:\s+"
 
