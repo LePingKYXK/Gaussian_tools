@@ -106,7 +106,7 @@ def save_structure_xyz(outputf, data, Natom, fmt_cmt, fmt_coord, method, cmt):
 
 
 def main(path, filename, method, angID1, angID2):
-    ''' Work Flow:
+    ''' Workflow:
     (1) read file line by line;
     (2) extract the energy at each stationary point;
     (3) extract the optimized geometry step by step.
