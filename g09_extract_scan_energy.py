@@ -4,6 +4,7 @@
 import numpy as np
 import pandas as pd
 import re, os, time
+from numpy import char
 
 
 pathin = input("\nPlease Enter the Directory Contained Your File:\n")
@@ -30,7 +31,8 @@ def parse_info(fo, pattern_orient, len_elements, pattern_energy, pattern_statny)
     line by line.
     Return the coordinates and the energy at the stationary point.
     '''
-    coords = np.chararray((len_elements, 3), itemsize=14)
+    coords = char.chararray((len_elements, 3), itemsize=14)
+
     while fo:
         line = next(fo)
         if re.search(pattern_orient, line):
@@ -42,7 +44,7 @@ def parse_info(fo, pattern_orient, len_elements, pattern_energy, pattern_statny)
                 xyz = line.strip().split()[3:6]
                 xyzlist.append(xyz)
             coords[:] = xyzlist
-            #print("\ncoordinates:\n{:}\n".format(coords))
+            #print("\ncoordinates:\n{:}\t type is{:}\n".format(coords, coords.dtype))
             
         if line.startswith(' SCF Done:'):
             energy = []
@@ -93,20 +95,16 @@ def calc_dihedral_angles(coordinates):
     return np.rad2deg(np.arctan2(y, x))
 
 
-def save_structure_xyz(path, inputf, elements, coords, method, model_num):
+def save_structure_xyz(outputf, data, Natom, fmt_cmt, fmt_coord, method, cmt):
     ''' Save the stucture into a file in the .xyz format.
     '''
-    output_fname = ''.join((os.path.splitext(inputf)[0], '_', method, '.xyz'))
-    path_outfile = os.path.join(path, output_fname)
-    fmt_commentline = "Model_number = {:}\n"
-    fmt_coordinates = "%-14s %+14s %+14s %+14s"
-    geom = np.column_stack((elements, coords))
+    print("\ngeometry:\n{:}\t type is {:}\n".format(data, data.dtype))
     
-    with open(path_outfile, 'a') as fw:
-        fw.write(''.join((str(len(elements)),'\n')))
-        fw.write(fmt_commentline.format(model_num))
-        np.savetxt(fw, geom, fmt=fmt_coordinates)
-    print("Save the coordinates.".format(model_num))
+    with open(outputf, 'a') as fw:
+        fw.write(fmt_cmt.format(Natom, cmt))
+    with open(outputf, 'ab') as fw:
+        np.savetxt(fw, data, fmt=fmt_coord)
+    print("Save the coordinates.")
 
 
 def main(path, filename, method, angID1, angID2):
@@ -135,6 +133,12 @@ def main(path, filename, method, angID1, angID2):
     pattern_orient = re.compile(str_std_orient)
 
     terminations = (' Error termination', ' Normal termination')
+
+    output_fname = ''.join((os.path.splitext(inputf)[0], '_', method, '.xyz'))
+    path_outfile = os.path.join(path, output_fname)
+    fmt_commentline = "{:d}\nModel_number = {:d}\n"
+    fmt_coordinates = "%-14s %+14s %+14s %+14s"
+    
     initial_time = time.time()
     
     with open(os.path.join(path, filename), 'r') as fo:
@@ -169,8 +173,11 @@ def main(path, filename, method, angID1, angID2):
                                                 pattern_statny)
                     if energy and coords.size > 0:
                         print(print_fmt.format(model_num))
-                        #save_structure_xyz(path, inputf, elements,
-                        #                   coords, method, model_num)
+                        geom = np.column_stack((elements, coords))
+                        save_structure_xyz(path_outfile, geom, len_elements,
+                                           fmt_commentline, fmt_coordinates,
+                                           method, model_num)
+                        
                         print(step_fmt.format(model_num,
                                               time.time() - start_time))
                         energy_list.append(energy)
@@ -189,7 +196,7 @@ def main(path, filename, method, angID1, angID2):
                 
         title = ['Phi', 'Psi', 'Energy (kcal/mol)']
         df = pd.DataFrame(np.column_stack((Phi, Psi, Eng)), columns=title)
-                
+        
         output = ''.join(('Model_', inputf[:4], '.csv'))
         df.to_csv(os.path.join(pathin, output), sep=',',
                   columns=title, index=False)
