@@ -96,22 +96,20 @@ def calc_dihedral_angles(coordinates):
 
 
 def save_structure_xyz(outputf, data, Natom, fmt_cmt, fmt_coord, method, cmt):
-    ''' Save the stucture into a file in the .xyz format.
+    ''' Save the coordinates into a file in the .xyz format.
     '''
-    print("\ngeometry:\n{:}\t type is {:}\n".format(data, data.dtype))
-    
     with open(outputf, 'a') as fw:
         fw.write(fmt_cmt.format(Natom, cmt))
     with open(outputf, 'ab') as fw:
         np.savetxt(fw, data, fmt=fmt_coord)
-    print("Save the coordinates.")
+    print("The coordinates have been saved.")
 
 
 def main(path, filename, method, angID1, angID2):
     ''' Work Flow:
-    read file line by line;
-    extract the energy at each stationary point;
-    extract the optimized geometry step by step.
+    (1) read file line by line;
+    (2) extract the energy at each stationary point;
+    (3) extract the optimized geometry step by step.
     '''
     initial_time = time.time()
 
