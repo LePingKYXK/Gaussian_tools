@@ -11,6 +11,7 @@ pathin = input("\nPlease Enter the Directory Contained Your File:\n")
 inputf = input("\nPlease Enter the SCAN Result File: (*.log)\n")
 method = input("\nPlease Enter the Method (e.g. harmonic or anharmonic):\n")
 
+
 def read_file(filename, method):
     '''
     '''
@@ -46,9 +47,7 @@ def read_file(filename, method):
             freqs = r"(\s+|\n\s+)[1-9]"
             for line in fo:
                 if re.search(anhar, line):
-                    print("The current line BEFORE BREAK is:\n{:}\n".format(line))
                     break
-            print("The current line JUST BREAK is:\n{:}\n".format(line))
 
             while fo:
                 line = next(fo)
@@ -63,8 +62,10 @@ def read_file(filename, method):
                     fundamental = pd.DataFrame(np.array(fundamental).reshape(-1,4),
                                                columns=col)
                     fundamental.replace('***************', np.nan, inplace=True)
-                    #fundamental.rename(columns={'Mode(Quanta)':'Fundamental'}, inplace=True)
-                    print("fundamental\n{}\n".format(fundamental))
+                    fundamental.rename(columns={'E(anharm)':'Frequency',
+                                                'I(anharm)':'IR_Intensity'},
+                                       inplace=True)
+                    #print("fundamental\n{}\n".format(fundamental))
                     
                 elif line.startswith(" Overtones"):
                     for i in range(2):
@@ -76,8 +77,10 @@ def read_file(filename, method):
                             overtone.append(line.strip().split()[1:])
                     overtone = pd.DataFrame(np.array(overtone).reshape(-1,3),
                                             columns=col)
-                    #overtone.rename(columns={'Mode(Quanta)':'Overtones'}, inplace=True)
-                    print("overtone\n{}\n".format(overtone))
+                    overtone.rename(columns={'E(anharm)':'Frequency',
+                                                'I(anharm)':'IR_Intensity'},
+                                       inplace=True)
+                    #print("overtone\n{}\n".format(overtone))
 
                 elif line.startswith(" Combination Bands"):
                     for i in range(2):
@@ -89,15 +92,15 @@ def read_file(filename, method):
                             combination.append(line.strip().split()[2:])
                     combination = pd.DataFrame(np.array(combination).reshape(-1,3),
                                                columns=col)
-                    #combination.rename(columns={'Mode(Quanta)':'Combinations'}, inplace=True)
-                    print("Combination\n{}\n".format(combination))
+                    combination.rename(columns={'E(anharm)':'Frequency',
+                                                'I(anharm)':'IR_Intensity'},
+                                       inplace=True)
+                    #print("Combination\n{}\n".format(combination))
                     
                 elif line.startswith(" Grad"):
                     break
             #data = pd.concat([fundamental, overtone, combination])[fundamental.columns.tolist()]
-            
-
-    return data
+            return fundamental, overtone, combination
 
 
 def plot_harmonic(data):
@@ -111,40 +114,51 @@ def plot_harmonic(data):
     ax.tick_params(axis='x', labelsize=12, rotation=45)
     plt.setp(ax.xaxis.get_majorticklabels(), ha='right') # align the xtick to the right location, since rotate 45 move the xtick.
     ax.tick_params(axis='y', labelsize=12)
+    
+    ax.set_xlim([0.0, 4000.0])
     ax.set_xlabel('Frequency (cm$^{-1}$)', fontsize=18)
     ax.set_ylabel('Intensity (a.u.)', fontsize=18)
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles, labels, loc='best', fontsize=15)
 
-    x = grouped.Date
-    y = grouped.n_fra
+    x = data.index
+    y = data["IR_Intensity"]
 
-    ax.plot(x, y, '-')
-    fig.savefig(os.path.join(path, 'The_IR_spectum.png'), dpi=600)
+    ax.plot(x, y, 'o', color='k')
+    #fig.savefig(os.path.join(path, 'The_IR_spectum.png'), dpi=600)
     plt.show()
 
 
-def plot_anharmonic(data):
+def plot_anharmonic(fundamental, overtone, combination):
     '''
     '''
     fig = plt.figure(figsize=(8, 6)) # Creates a new figure, size in unit of inch
     ax = fig.add_subplot(111) # add a subplot to the new figure, 111 means "1x1 grid, first subplot"
     fig.subplots_adjust(top=0.90, bottom=0.25 ,left=0.12, right=0.95) # adjust the placing of subplot, adjust top, bottom, left and right spacing  
-    ax.set_title('The IR Spectrum', fontsize=18) 
+    ax.set_title('The Anharmonic IR Spectrum', fontsize=18) 
 
     ax.tick_params(axis='x', labelsize=12, rotation=45)
     plt.setp(ax.xaxis.get_majorticklabels(), ha='right') # align the xtick to the right location, since rotate 45 move the xtick.
     ax.tick_params(axis='y', labelsize=12)
+    
+    ax.set_xlim([0.0, 4000.0])
+    #ax.set_ylim([0.0, max()])
     ax.set_xlabel('Frequency (cm$^{-1}$)', fontsize=18)
     ax.set_ylabel('Intensity (a.u.)', fontsize=18)
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles, labels, loc='best', fontsize=15)
 
-    x = grouped.Date
-    y = grouped.n_fra
+    x1 = fundamental["Frequency"]
+    y1 = fundamental["IR_Intensity"]
+    x2 = overtone["Frequency"]
+    y2 = overtone["IR_Intensity"]
+    x3 = combination["Frequency"]
+    y3 = combination["IR_Intensity"]
 
-    ax.plot(x, y, '-')
-    fig.savefig(os.path.join(path, 'The_IR_spectum.png'), dpi=600)
+    ax.plot(x1, y1, 'o', color='b')
+    ax.plot(x2, y2, '.',  color='g')
+    ax.plot(x3, y3, '^',  color='r')
+    #fig.savefig(os.path.join(path, 'The_IR_spectum.png'), dpi=600)
     plt.show()
 
 
@@ -152,19 +166,26 @@ def main(path, filename, method):
     ''' Workflow:
     (1) read the file line by line;
     (2) extract the frequency and the IR intensity as a table;
-    (3) plot the IR spectrum.
+    (3) plot the (harmonic or anharmonic) IR spectrum.
     '''
     initial_time = time.time()
     inputfile = os.path.join(path, filename)
-    IR_data = read_file(inputfile, method)
-    print("\nThe table is\n{:}\n".format(IR_data))
-    
-    #fmt_time = "\nWork Complete! Used Time: {:.3f} Seconds."
-    #print(fmt_time.format(time.time() - initial_time))
-    #IR_data.plot(kind='bar')
-    #plt.show()
-    #plot_anharmonic(IR_data)
+    IR_df = read_file(inputfile, method)
 
+    if method.lower() == "harmonic":
+        fmt = "\nThe table is:\n{:}\n"
+        print(fmt.format(IR_df))
+        fmt_time = "\nWork Complete! Used Time: {:.3f} Seconds."
+        print(fmt_time.format(time.time() - initial_time))
+        plot_harmonic(IR_df)
+        
+    elif method.lower() == "anharmonic":
+        fmt = ''.join(("\nThe table is:\n", "{:}\n\n" * len(IR_df)))
+        print(fmt.format(*IR_df))
+        fmt_time = "\nWork Complete! Used Time: {:.3f} Seconds."
+        print(fmt_time.format(time.time() - initial_time))
+        plot_anharmonic(IR_df[0], IR_df[1], IR_df[2])
+    
 
 if __name__ == "__main__":
     main(pathin, inputf, method)
