@@ -78,8 +78,8 @@ def read_file(filename, method):
                     overtone = pd.DataFrame(np.array(overtone).reshape(-1,3),
                                             columns=col)
                     overtone.rename(columns={'E(anharm)':'Frequency',
-                                                'I(anharm)':'IR_Intensity'},
-                                       inplace=True)
+                                             'I(anharm)':'IR_Intensity'},
+                                    inplace=True)
                     #print("overtone\n{}\n".format(overtone))
 
                 elif line.startswith(" Combination Bands"):
