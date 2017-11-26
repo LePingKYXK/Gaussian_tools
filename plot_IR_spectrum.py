@@ -12,6 +12,22 @@ inputf = input("\nPlease Enter the Result File: (*.log)\n")
 method = input("\nPlease Enter the Method (e.g. harmonic or anharmonic):\n")
 
 
+def anharm_freq_format(string, column):
+    if len(column) == 4: # Fundamental Bands
+        info = [string[0:18].strip(),     # 0.  Mode(Quanta)
+                string[22:31].strip(),    # 1.  harmonic frequency
+                string[31:42].strip(),    # 2.  anharmonic frequency
+                string[42:58].strip(),    # 3.  harmonic intensity
+                string[58:74].strip()]    # 4.  anharmonic intensity
+        return info
+    elif len(column) == 3: # Overtones or Combination Bands
+        info = [string[0:18].strip(),     # 0.  Mode(Quanta)
+                string[22:31].strip(),    # 1.  harmonic frequency
+                string[31:42].strip(),    # 2.  anharmonic frequency
+                string[58:74].strip()]    # 4.  anharmonic intensity
+        return info
+
+
 def read_file(filename, method):
     '''
     '''
@@ -33,8 +49,8 @@ def read_file(filename, method):
                     intensity.append(val2)
                 if line.startswith(" - Thermochemistry"):
                     break
-            frequency = np.array(frequency, dtype=np.float).flatten()
-            intensity = np.array(intensity, dtype=np.float).flatten()
+            frequency = np.array(frequency, dtype=np.float64).flatten()
+            intensity = np.array(intensity, dtype=np.float64).flatten()
             if frequency.shape == intensity.shape:
                 data = pd.DataFrame(intensity,
                                     columns=['IR_Intensity'],
@@ -48,7 +64,6 @@ def read_file(filename, method):
             for line in fo:
                 if re.search(anhar, line):
                     break
-
             while fo:
                 line = next(fo)
                 if line.startswith(" Fundamental Bands"):
@@ -58,7 +73,7 @@ def read_file(filename, method):
                     while line not in ['\n', '\r\n']:
                         line = next(fo)
                         if re.search(freqs, line):
-                            fundamental.append(line.strip().split()[1:])
+                            fundamental.append(anharm_freq_format(line, col)[1:])
                     fundamental = pd.DataFrame(np.array(fundamental).reshape(-1,4),
                                                columns=col)
                     fundamental.replace('***************', np.nan, inplace=True)
@@ -74,7 +89,7 @@ def read_file(filename, method):
                     while line not in ['\n', '\r\n']:
                         line = next(fo)
                         if re.search(freqs, line):
-                            overtone.append(line.strip().split()[1:])
+                            overtone.append(anharm_freq_format(line, col)[1:])
                     overtone = pd.DataFrame(np.array(overtone).reshape(-1,3),
                                             columns=col)
                     overtone.rename(columns={'E(anharm)':'Frequency',
@@ -89,7 +104,7 @@ def read_file(filename, method):
                     while line not in ['\n', '\r\n']:
                         line = next(fo)
                         if re.search(freqs, line):
-                            combination.append(line.strip().split()[2:])
+                            combination.append(anharm_freq_format(line, col)[1:])
                     combination = pd.DataFrame(np.array(combination).reshape(-1,3),
                                                columns=col)
                     combination.rename(columns={'E(anharm)':'Frequency',
@@ -99,7 +114,6 @@ def read_file(filename, method):
                     
                 elif line.startswith(" Grad"):
                     break
-            #data = pd.concat([fundamental, overtone, combination])[fundamental.columns.tolist()]
             return fundamental, overtone, combination
 
 
@@ -121,9 +135,9 @@ def plot_harmonic(data):
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles, labels, loc='best', fontsize=15)
 
-    #### dras the peak-points
-    x_c = data.index.values.astype(np.float64)
-    amp = data["IR_Intensity"].values.astype(np.float64)
+    #### draw the peak-points
+    x_c = data.index.values
+    amp = data["IR_Intensity"].values
     #ax.plot(x_c, amp, '.', color='b')
 
     #### draw the spectrum profile
@@ -158,10 +172,18 @@ def plot_anharmonic(fundamental, overtone, combination):
     
     fdm_x_c = fundamental["Frequency"].values.astype(np.float64)
     fdm_amp = fundamental["IR_Intensity"].values.astype(np.float64)
+
     ovt_x_c = overtone["Frequency"].values.astype(np.float64)
     ovt_amp = overtone["IR_Intensity"].values.astype(np.float64)
+    ovtmask = np.where(ovt_x_c <= 4000)
+    ovt_x_c = ovt_x_c[ovtmask]
+    ovt_amp = ovt_amp[ovtmask]
+
     cmb_x_c = combination["Frequency"].values.astype(np.float64)
     cmb_amp = combination["IR_Intensity"].values.astype(np.float64)
+    cmbmask = np.where(cmb_x_c <= 4000)
+    cmb_x_c = cmb_x_c[cmbmask]
+    cmb_amp = cmb_amp[cmbmask]
 
     #ax.plot(fdm_x_c, dfm_amp, '.', color='b')
     #ax.plot(ovt_x_c, vot_amp, 'o', color='g')
@@ -170,14 +192,18 @@ def plot_anharmonic(fundamental, overtone, combination):
     x = np.linspace(0, 4000, 40000)
     FWHM = 10.0
     const = FWHM ** 2 / (2 * math.log(4))
+    
+    #### draw the fundamental spectrum profile
     for i, fdm_data in enumerate(fdm_x_c):
         fdm = fdm_amp[i] * np.exp(-0.5 * (np.square(x - fdm_data) / const))
         ax.plot(x, fdm, '-', color='b')
-
+        
+    #### draw the overtone spectrum profile
     for j, ovt_data in enumerate(ovt_x_c):
         ovt = ovt_amp[j] * np.exp(-0.5 * (np.square(x - ovt_data) / const))
         ax.plot(x, ovt, '-', color='g')
 
+    #### draw the combination spectrum profile
     for k, cmb_data in enumerate(cmb_x_c):
         cmb = cmb_amp[k] * np.exp(-0.5 * (np.square(x - cmb_data) / const))
         ax.plot(x, cmb, '-', color='r')
@@ -191,26 +217,30 @@ def main(path, filename, method):
     (2) extract the frequency and the IR intensity as a table;
     (3) plot the (harmonic or anharmonic) IR spectrum.
     '''
+    drawline = ''.join(('\n', '-' * 79, '\n'))
     initial_time = time.time()
     inputfile = os.path.join(path, filename)
     IR_df = read_file(inputfile, method)
-
+    
     if method.lower() == "harmonic":
         fmt = "\nThe table is:\n{:}\n"
         print(fmt.format(IR_df))
-        fmt_time = "\nWork Complete! Used Time: {:.3f} Seconds."
+        fmt_time = ''.join((drawline,
+                            "Work Complete! Used Time: {:.3f} Seconds.",
+                            drawline))
         print(fmt_time.format(time.time() - initial_time))
         plot_harmonic(IR_df)
         
     elif method.lower() == "anharmonic":
         fmt = ''.join(("\nThe table is:\n", "{:}\n\n" * len(IR_df)))
         print(fmt.format(*IR_df))
-        fmt_time = "\nWork Complete! Used Time: {:.3f} Seconds."
+        fmt_time = ''.join((drawline,
+                            "Work Complete! Used Time: {:.3f} Seconds.",
+                            drawline))
         print(fmt_time.format(time.time() - initial_time))
         plot_anharmonic(IR_df[0].dropna(),
                         IR_df[1].dropna(),
                         IR_df[2].dropna())
-        
     return IR_df
     
 
