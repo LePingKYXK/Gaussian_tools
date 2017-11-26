@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-
+import math
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -8,7 +8,7 @@ import re, os, time
 
 
 pathin = input("\nPlease Enter the Directory Contained Your File:\n")
-inputf = input("\nPlease Enter the SCAN Result File: (*.log)\n")
+inputf = input("\nPlease Enter the Result File: (*.log)\n")
 method = input("\nPlease Enter the Method (e.g. harmonic or anharmonic):\n")
 
 
@@ -121,10 +121,18 @@ def plot_harmonic(data):
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles, labels, loc='best', fontsize=15)
 
-    x = data.index
-    y = data["IR_Intensity"]
+    #### dras the peak-points
+    x_c = data.index.values.astype(np.float64)
+    amp = data["IR_Intensity"].values.astype(np.float64)
+    #ax.plot(x_c, amp, '.', color='b')
 
-    ax.plot(x, y, 'o', color='k')
+    #### draw the spectrum profile
+    x = np.linspace(0, 4000, 40000)
+    FWHM = 10.0
+    const = FWHM ** 2 / (2 * math.log(4))
+    for i, data in enumerate(x_c):
+        y = amp[i] * np.exp(-0.5 * (np.square(x - data) / const))
+        ax.plot(x, y, '-', color='k')
     #fig.savefig(os.path.join(path, 'The_IR_spectum.png'), dpi=600)
     plt.show()
 
@@ -147,17 +155,32 @@ def plot_anharmonic(fundamental, overtone, combination):
     ax.set_ylabel('Intensity (a.u.)', fontsize=18)
     handles, labels = ax.get_legend_handles_labels()
     ax.legend(handles, labels, loc='best', fontsize=15)
+    
+    fdm_x_c = fundamental["Frequency"].values.astype(np.float64)
+    fdm_amp = fundamental["IR_Intensity"].values.astype(np.float64)
+    ovt_x_c = overtone["Frequency"].values.astype(np.float64)
+    ovt_amp = overtone["IR_Intensity"].values.astype(np.float64)
+    cmb_x_c = combination["Frequency"].values.astype(np.float64)
+    cmb_amp = combination["IR_Intensity"].values.astype(np.float64)
 
-    x1 = fundamental["Frequency"]
-    y1 = fundamental["IR_Intensity"]
-    x2 = overtone["Frequency"]
-    y2 = overtone["IR_Intensity"]
-    x3 = combination["Frequency"]
-    y3 = combination["IR_Intensity"]
+    #ax.plot(fdm_x_c, dfm_amp, '.', color='b')
+    #ax.plot(ovt_x_c, vot_amp, 'o', color='g')
+    #ax.plot(cmb_x_c, cmb_amp, '^', color='r')
 
-    ax.plot(x1, y1, 'o', color='b')
-    ax.plot(x2, y2, '.',  color='g')
-    ax.plot(x3, y3, '^',  color='r')
+    x = np.linspace(0, 4000, 40000)
+    FWHM = 10.0
+    const = FWHM ** 2 / (2 * math.log(4))
+    for i, fdm_data in enumerate(fdm_x_c):
+        fdm = fdm_amp[i] * np.exp(-0.5 * (np.square(x - fdm_data) / const))
+        ax.plot(x, fdm, '-', color='b')
+
+    for j, ovt_data in enumerate(ovt_x_c):
+        ovt = ovt_amp[j] * np.exp(-0.5 * (np.square(x - ovt_data) / const))
+        ax.plot(x, ovt, '-', color='g')
+
+    for k, cmb_data in enumerate(cmb_x_c):
+        cmb = cmb_amp[k] * np.exp(-0.5 * (np.square(x - cmb_data) / const))
+        ax.plot(x, cmb, '-', color='r')
     #fig.savefig(os.path.join(path, 'The_IR_spectum.png'), dpi=600)
     plt.show()
 
@@ -184,8 +207,12 @@ def main(path, filename, method):
         print(fmt.format(*IR_df))
         fmt_time = "\nWork Complete! Used Time: {:.3f} Seconds."
         print(fmt_time.format(time.time() - initial_time))
-        plot_anharmonic(IR_df[0], IR_df[1], IR_df[2])
+        plot_anharmonic(IR_df[0].dropna(),
+                        IR_df[1].dropna(),
+                        IR_df[2].dropna())
+        
+    return IR_df
     
 
 if __name__ == "__main__":
-    main(pathin, inputf, method)
+    IR_df = main(pathin, inputf, method)
