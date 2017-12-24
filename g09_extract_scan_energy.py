@@ -7,11 +7,14 @@ import re, os, time
 from numpy import char
 
 
-pathin = input("\nPlease Enter the Directory Contained Your File:\n")
-inputf = input("\nPlease Enter the SCAN Result File: (*.log)\n")
-method = input("\nThe Computational Method:\n")
-angID1 = input("\nPlease Enter the indices of the 1st dihedral angle (e.g. 1,2,3,4):\n")
-angID2 = input("\nPlease Enter the indices of the 2nd dihedral angle (e.g. 2,3,4,5):\n")
+path_str = "\nPlease Enter the Directory Contained Your File:\n"
+fnamestr = "\nPlease Enter the SCAN Result File Name: (*.log)\n"
+diAng1 = "\nPlease Enter the IDs of the 1st dihedral angle (e.g. 1,2,3,4):\n"
+diAng2 = "\nPlease Enter the IDs of the 2nd dihedral angle (e.g. 2,3,4,5):\n"
+inputdir = input(path_str)
+result_f = input(fnamestr)
+diAngID1 = re.split(",|\s+", input(diAng1))
+diAngID2 = re.split(",|\s+", input(diAng2))
 
 
 def extract_elements(fo):
@@ -27,10 +30,10 @@ def extract_elements(fo):
 
 
 def parse_info(fo, pattern_orient, len_elements, pattern_energy, pattern_statny):
-    ''' parse the information from the Gaussian09 scan result (*.log file),
+    """ parse the information from the Gaussian09 scan result (*.log file),
     line by line.
     Return the coordinates and the energy at the stationary point.
-    '''
+    """
     coords = char.chararray((len_elements, 3), itemsize=14)
 
     while fo:
@@ -46,7 +49,7 @@ def parse_info(fo, pattern_orient, len_elements, pattern_energy, pattern_statny)
             coords[:] = xyzlist
             #print("\ncoordinates:\n{:}\t type is{:}\n".format(coords, coords.dtype))
             
-        if line.startswith(' SCF Done:'):
+        if line.startswith(" SCF Done:"):
             energy = []
             match_energy = re.search(pattern_energy, line)
             if match_energy:
@@ -61,12 +64,12 @@ def parse_info(fo, pattern_orient, len_elements, pattern_energy, pattern_statny)
 
 
 def calc_dihedral_angles(coordinates):
-    ''' Using the Gram–Schmidt process to calculate the dihedral_angle
+    """ Using the Gram–Schmidt process to calculate the dihedral_angle
     of atom1-atom2-atom3-atom4 (e.g. N--C_alpha--C--O) in each residue
     of the protine (PDB file).
         This function returns a 1D data array of the dihedral angles
     in the unit of degree.
-    '''
+    """
     p1 = np.asfarray(coordinates[0,:], dtype=np.float64)
     p2 = np.asfarray(coordinates[1,:], dtype=np.float64)
     p3 = np.asfarray(coordinates[2,:], dtype=np.float64)
@@ -89,32 +92,32 @@ def calc_dihedral_angles(coordinates):
     w = b2 - np.dot(b2, b1) * b1
     
     # angle between v and w in a plane is the torsion angle
-    # v and w may not be normalized but that's fine since tan is y/x
+    # v and w may not be normalized but that"s fine since tan is y/x
     x = np.dot(v, w)
     y = np.dot(np.cross(b1, v), w)
     return np.rad2deg(np.arctan2(y, x))
 
 
-def save_structure_xyz(outputf, data, Natom, fmt_cmt, fmt_coord, method, cmt):
-    ''' Save the coordinates into a file in the .xyz format.
-    '''
-    with open(outputf, 'a') as fw:
+def save_structure_xyz(outputf, data, Natom, fmt_cmt, fmt_coord, cmt):
+    """ Save the coordinates into a file in the .xyz format.
+    """
+    with open(outputf, "a") as fw:
         fw.write(fmt_cmt.format(Natom, cmt))
-    with open(outputf, 'ab') as fw:
+    with open(outputf, "ab") as fw:
         np.savetxt(fw, data, fmt=fmt_coord)
     print("The coordinates have been saved.")
 
 
-def main(path, filename, method, angID1, angID2):
-    ''' Workflow:
+def main(path, filename, dihedral1, dihedral2):
+    """ Workflow:
     (1) read file line by line;
     (2) extract the energy at each stationary point;
     (3) extract the optimized geometry step by step.
-    '''
+    """
     initial_time = time.time()
-
-    phi_ids = np.array(angID1.split(',' or ' '), dtype=int) - 1
-    psi_ids = np.array(angID2.split(',' or ' '), dtype=int) - 1
+    
+    phi_ids = np.array(dihedral1, dtype=int) - 1
+    psi_ids = np.array(dihedral2, dtype=int) - 1
     
     energy_list = []
     phi_list = []
@@ -130,16 +133,16 @@ def main(path, filename, method, angID1, angID2):
     pattern_statny = re.compile(str_stationary)
     pattern_orient = re.compile(str_std_orient)
 
-    terminations = (' Error termination', ' Normal termination')
+    terminations = (" Error termination", " Normal termination")
 
-    output_fname = ''.join((os.path.splitext(inputf)[0], '_', method, '.xyz'))
+    output_fname = "".join((os.path.splitext(filename)[0], "_coords", ".xyz"))
     path_outfile = os.path.join(path, output_fname)
     fmt_commentline = "{:d}\nModel_number = {:d}\n"
     fmt_coordinates = "%-14s %+14s %+14s %+14s"
     
     initial_time = time.time()
     
-    with open(os.path.join(path, filename), 'r') as fo:
+    with open(os.path.join(path, filename), "r") as fo:
 
         model_num = 1
         
@@ -155,8 +158,8 @@ def main(path, filename, method, angID1, angID2):
         #### combining them with energy in the loop, 
         #### and save the results in each loop.
         
-        print_line = ''.join(('\n', '-' * 50, '\n'))
-        print_fmt = ''.join((print_line, "Model Number: {:>6d}"))
+        print_line = "".join(("\n", "-" * 50, "\n"))
+        print_fmt = "".join((print_line, "Model Number: {:>6d}"))
         step_fmt = "Step {:} Complete! Used Time: {:.3f} Seconds."
         for line in fo:
             try:
@@ -174,7 +177,7 @@ def main(path, filename, method, angID1, angID2):
                         geom = np.column_stack((elements, coords))
                         save_structure_xyz(path_outfile, geom, len_elements,
                                            fmt_commentline, fmt_coordinates,
-                                           method, model_num)
+                                           model_num)
                         
                         print(step_fmt.format(model_num,
                                               time.time() - start_time))
@@ -192,11 +195,11 @@ def main(path, filename, method, angID1, angID2):
         Psi = np.array(psi_list, dtype=np.float64)
         Eng = np.array(energy_list, dtype=np.float64) * 627.5095
                 
-        title = ['Phi', 'Psi', 'Energy (kcal/mol)']
+        title = ["Phi", "Psi", "Energy (kcal/mol)"]
         df = pd.DataFrame(np.column_stack((Phi, Psi, Eng)), columns=title)
         
-        output = ''.join(('Model_', inputf[:4], '.csv'))
-        df.to_csv(os.path.join(pathin, output), sep=',',
+        output = "".join(("Model_", filename[:4], ".csv"))
+        df.to_csv(os.path.join(path, output), sep=",",
                   columns=title, index=False)
         
         fmt = "\nWork Complete! Used Time: {:.3f} Seconds."
@@ -204,4 +207,4 @@ def main(path, filename, method, angID1, angID2):
                     
 
 if __name__ == "__main__":
-    main(pathin, inputf, method, angID1, angID2)
+    main(inputdir, result_f, diAngID1, diAngID2)
